@@ -9,31 +9,52 @@ namespace WinTail
     /// </summary>
     class ConsoleReaderActor : UntypedActor
     {
+        public const string StartCommand = "start";
         public const string ExitCommand = "exit";
-        private IActorRef _consoleWriterActor;
+        private IActorRef _validationActor;
 
-        public ConsoleReaderActor(IActorRef consoleWriterActor)
+        public ConsoleReaderActor(IActorRef validationActor)
         {
-            _consoleWriterActor = consoleWriterActor;
+            _validationActor = validationActor;
         }
 
         protected override void OnReceive(object message)
         {
-            var read = Console.ReadLine();
-            if (!string.IsNullOrEmpty(read) && String.Equals(read, ExitCommand, StringComparison.OrdinalIgnoreCase))
+            if (message.Equals(StartCommand))
             {
-                // shut down the system (acquire handle to system via
-                // this actors context)
+                DoPrintInstructions();
+            }
+
+            GetAndValidateInput();
+        }
+
+        #region Internal methods
+        void DoPrintInstructions() => Console.WriteLine("Please provide the URI of a log file on disk.\n");
+        
+        void GetAndValidateInput()
+        {
+            var message = Console.ReadLine();
+            if (!string.IsNullOrEmpty(message) 
+                && String.Equals(message, ExitCommand, StringComparison.OrdinalIgnoreCase))
+            {
+                // if user typed ExitCommand, shut down the entire actor
+                // system (allows the process to exit)
                 Context.System.Terminate();
                 return;
             }
 
-            // send input to the console writer to process and print
-            // YOU NEED TO FILL IN HERE
-
-            // continue reading messages from the console
-            // YOU NEED TO FILL IN HERE
+            // otherwise, just hand message off to validation actor
+            // (by telling its actor ref)
+            _validationActor.Tell(message);
         }
 
+        /// <summary>
+        /// Validates <see cref="message"/>.
+        /// Currently says messages are valid if contain even number of characters.
+        /// </summary>
+        /// <param name="message"></param>
+        /// <returns></returns>
+        static bool IsValid(string message) => message.Length % 2 == 0;
+        #endregion
     }
 }
